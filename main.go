@@ -39,6 +39,11 @@ var (
 		"Current state of a cloud service",
 		[]string{"name", "state"}, nil,
 	)
+	mqttServerStatus = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "mqtt_server_state"),
+		"Current state of the mqtt service",
+		[]string{"name", "state"}, nil,
+	)
 )
 
 func main() {

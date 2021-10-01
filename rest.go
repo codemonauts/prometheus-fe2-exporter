@@ -26,6 +26,16 @@ type CloudService struct {
 	State string `json:"state"`
 }
 
+type MQTTRestResponse struct {
+	Default    string `json:"defaultBroker"`
+	Kubernetes string `json:"kubernetes"`
+}
+
+type MQTTServer struct {
+	Name  string
+	State string
+}
+
 // HasStatus checks if the alarm input has the given state
 func (i InputDetail) HasStatus(status string) float64 {
 	if i.State == status {
@@ -38,6 +48,15 @@ func (i InputDetail) HasStatus(status string) float64 {
 // HasStatus checks if the cloudservice has the given state
 func (c CloudService) HasStatus(status string) float64 {
 	if c.State == status {
+		return 1
+	} else {
+		return 0
+	}
+}
+
+// HasStatus checks if the cloudservice has the given state
+func (m MQTTServer) HasStatus(status string) float64 {
+	if m.State == status {
 		return 1
 	} else {
 		return 0
@@ -116,4 +135,38 @@ func QueryCloudServices(hostname string, accessKey string) (*[]CloudService, err
 	}
 
 	return &services, nil
+}
+
+// QueryMQTTServer returns a list of all mqtt brokers
+func QueryMQTTServer(hostname string, accessKey string) (*[]MQTTServer, error) {
+	authHeader := req.Header{
+		"Accept":        "application/json",
+		"Authorization": accessKey,
+	}
+	var resp MQTTRestResponse
+
+	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/mqtt", hostname), authHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.ToJSON(&resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert data structure from single object to list of objects
+	// to fit the structure of all other endpoints
+	mqttServer := []MQTTServer{
+		MQTTServer{
+			Name:  "defaultBroker",
+			State: resp.Default,
+		},
+		MQTTServer{
+			Name:  "kubernetes",
+			State: resp.Kubernetes,
+		},
+	}
+
+	return &mqttServer, nil
 }

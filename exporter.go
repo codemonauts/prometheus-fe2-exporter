@@ -24,6 +24,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- scrapeDuration
 	ch <- inputStatus
 	ch <- cloudServiceStatus
+	ch <- mqttServerStatus
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -81,7 +82,19 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 	// TODO
 
 	// MQTT status
-	// TODO
+	mqttResponse, err := QueryMQTTServer(e.Hostname, e.accessKey)
+	if err != nil {
+		fmt.Println(err)
+		errors += 1
+	} else {
+		for _, server := range *mqttResponse {
+			for _, state := range []string{"OK", "ERROR", "NOT_USED"} {
+				ch <- prometheus.MustNewConstMetric(
+					mqttServerStatus, prometheus.GaugeValue, server.HasStatus(state), server.Name, state,
+				)
+			}
+		}
+	}
 
 	// Storage/Memory status
 	// TODO
