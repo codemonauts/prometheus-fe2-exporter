@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	listenAddr = ":9509"
+	listenAddr = ":9865"
 	namespace  = "fe2"
 )
 
