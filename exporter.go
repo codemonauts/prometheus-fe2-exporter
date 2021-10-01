@@ -25,6 +25,8 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- inputStatus
 	ch <- cloudServiceStatus
 	ch <- mqttServerStatus
+	ch <- freeMemory
+	ch <- freeDiskSpace
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -97,7 +99,16 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 	}
 
 	// Storage/Memory status
-	// TODO
+	systemReponse, err := QuerySystem(e.Hostname, e.accessKey)
+	if err != nil {
+		fmt.Println(err)
+		errors += 1
+	} else {
+		ch <- prometheus.MustNewConstMetric(freeMemory, prometheus.GaugeValue, systemReponse.FreeMemory)
+		for _, disk := range systemReponse.Disks {
+			ch <- prometheus.MustNewConstMetric(freeDiskSpace, prometheus.GaugeValue, disk.FreeSpace, disk.DriveLetter)
+		}
+	}
 
 	if errors == 0 {
 		return 1

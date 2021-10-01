@@ -44,6 +44,16 @@ var (
 		"Current state of the mqtt service",
 		[]string{"name", "state"}, nil,
 	)
+	freeMemory = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "free_memory"),
+		"Free memory of host system",
+		nil, nil,
+	)
+	freeDiskSpace = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "free_disk_space"),
+		"Free space on storage disks",
+		[]string{"drive_letter"}, nil,
+	)
 )
 
 func main() {

@@ -36,6 +36,14 @@ type MQTTServer struct {
 	State string
 }
 
+type SystemStatus struct {
+	FreeMemory float64 `json:"freeMemory"`
+	Disks      []struct {
+		DriveLetter string  `json:"disk"`
+		FreeSpace   float64 `json:"freeSpace"`
+	} `json:"disks"`
+}
+
 // HasStatus checks if the alarm input has the given state
 func (i InputDetail) HasStatus(status string) float64 {
 	if i.State == status {
@@ -169,4 +177,36 @@ func QueryMQTTServer(hostname string, accessKey string) (*[]MQTTServer, error) {
 	}
 
 	return &mqttServer, nil
+}
+
+// QuerySystem returns informations about memory and disc space
+func QuerySystem(hostname string, accessKey string) (*SystemStatus, error) {
+	authHeader := req.Header{
+		"Accept":        "application/json",
+		"Authorization": accessKey,
+	}
+	var resp SystemStatus
+
+	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/system", hostname), authHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.ToJSON(&resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert MB back to base unit
+	// MB -> KB -> Byte
+	resp.FreeMemory *= (1024 * 1024)
+
+	for idx := range resp.Disks {
+		// Convert GB back to base unit
+		// GB -> MB -> KB -> Byte
+		resp.Disks[idx].FreeSpace *= (1024 * 1024 * 1024)
+		resp.Disks[idx].DriveLetter = strings.Split(resp.Disks[idx].DriveLetter, ":")[0]
+	}
+
+	return &resp, nil
 }
