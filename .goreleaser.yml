@@ -1,0 +1,24 @@
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+
+archives:
+  - replacements:
+      linux: Linux
+      windows: Windows
+      amd64: x86_64
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
