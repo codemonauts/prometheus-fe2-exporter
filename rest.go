@@ -36,7 +36,7 @@ type MQTTServer struct {
 	State string
 }
 
-type SystemStatus struct {
+type SystemResponse struct {
 	FreeMemory float64 `json:"freeMemory"`
 	Disks      []struct {
 		DriveLetter string  `json:"disk"`
@@ -44,27 +44,20 @@ type SystemStatus struct {
 	} `json:"disks"`
 }
 
-// HasStatus checks if the alarm input has the given state
-func (i InputDetail) HasStatus(status string) float64 {
-	if i.State == status {
-		return 1
-	} else {
-		return 0
-	}
+type StatusResponse struct {
+	State             string  `json:"state"`
+	Message           string  `json:"message"`
+	NbrOfLoggedErrors float64 `json:"nbrOfLoggedErrors"`
+	RedundancyState   struct {
+		State      string `json:"state"`
+		Current    string `json:"current"`
+		Configured string `json:"configured"`
+	} `json:"redundancyState"`
 }
 
-// HasStatus checks if the cloudservice has the given state
-func (c CloudService) HasStatus(status string) float64 {
-	if c.State == status {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-// HasStatus checks if the cloudservice has the given state
-func (m MQTTServer) HasStatus(status string) float64 {
-	if m.State == status {
+// CheckState compares two string values and returns either 0 oder 1
+func CheckState(value string, state string) float64 {
+	if value == state {
 		return 1
 	} else {
 		return 0
@@ -86,11 +79,11 @@ func (i InputDetail) GetValue() (float64, error) {
 	}
 }
 
-// QueryInputs returns a list with informations about all alarm inputs
-func QueryInputs(hostname string, accessKey string) (*[]InputDetail, error) {
+// QueryInputs returns a list with information about all alarm inputs
+func QueryInputs(hostname string, AccessKey string) (*[]InputDetail, error) {
 	authHeader := req.Header{
 		"Accept":        "application/json",
-		"Authorization": accessKey,
+		"Authorization": AccessKey,
 	}
 	var inputDetails []InputDetail
 	var inputOverview InputOverview
@@ -125,10 +118,10 @@ func QueryInputs(hostname string, accessKey string) (*[]InputDetail, error) {
 }
 
 // QueryCloudServices returns a list of all cloudservices
-func QueryCloudServices(hostname string, accessKey string) (*[]CloudService, error) {
+func QueryCloudServices(hostname string, AccessKey string) (*[]CloudService, error) {
 	authHeader := req.Header{
 		"Accept":        "application/json",
-		"Authorization": accessKey,
+		"Authorization": AccessKey,
 	}
 	var services []CloudService
 
@@ -146,10 +139,10 @@ func QueryCloudServices(hostname string, accessKey string) (*[]CloudService, err
 }
 
 // QueryMQTTServer returns a list of all mqtt brokers
-func QueryMQTTServer(hostname string, accessKey string) (*[]MQTTServer, error) {
+func QueryMQTTServer(hostname string, AccessKey string) (*[]MQTTServer, error) {
 	authHeader := req.Header{
 		"Accept":        "application/json",
-		"Authorization": accessKey,
+		"Authorization": AccessKey,
 	}
 	var resp MQTTRestResponse
 
@@ -179,13 +172,13 @@ func QueryMQTTServer(hostname string, accessKey string) (*[]MQTTServer, error) {
 	return &mqttServer, nil
 }
 
-// QuerySystem returns informations about memory and disc space
-func QuerySystem(hostname string, accessKey string) (*SystemStatus, error) {
+// QuerySystem returns information about memory and disc space
+func QuerySystem(hostname string, AccessKey string) (*SystemResponse, error) {
 	authHeader := req.Header{
 		"Accept":        "application/json",
-		"Authorization": accessKey,
+		"Authorization": AccessKey,
 	}
-	var resp SystemStatus
+	var resp SystemResponse
 
 	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/system", hostname), authHeader)
 	if err != nil {
@@ -206,6 +199,27 @@ func QuerySystem(hostname string, accessKey string) (*SystemStatus, error) {
 		// GB -> MB -> KB -> Byte
 		resp.Disks[idx].FreeSpace *= (1024 * 1024 * 1024)
 		resp.Disks[idx].DriveLetter = strings.Split(resp.Disks[idx].DriveLetter, ":")[0]
+	}
+
+	return &resp, nil
+}
+
+// QueryStatus returns status information about the FE2 software
+func QueryStatus(hostname string, AccessKey string) (*StatusResponse, error) {
+	authHeader := req.Header{
+		"Accept":        "application/json",
+		"Authorization": AccessKey,
+	}
+	var resp StatusResponse
+
+	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/status", hostname), authHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.ToJSON(&resp)
+	if err != nil {
+		return nil, err
 	}
 
 	return &resp, nil

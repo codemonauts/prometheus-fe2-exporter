@@ -9,13 +9,13 @@ import (
 
 type Exporter struct {
 	Hostname  string
-	accessKey string
+	AccessKey string
 }
 
 func NewExporter(hostname string, accessKey string) *Exporter {
 	return &Exporter{
 		Hostname:  hostname,
-		accessKey: accessKey,
+		AccessKey: accessKey,
 	}
 }
 
@@ -27,6 +27,9 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- mqttServerStatus
 	ch <- freeMemory
 	ch <- freeDiskSpace
+	ch <- systemStatus
+	ch <- loggedErrors
+	ch <- redundancyStatus
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -42,7 +45,7 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 	errors := 0
 
 	// Get alarm inputs
-	inputResponse, err := QueryInputs(e.Hostname, e.accessKey)
+	inputResponse, err := QueryInputs(e.Hostname, e.AccessKey)
 	if err != nil {
 		fmt.Println(err)
 		errors += 1
@@ -50,7 +53,7 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 		for _, input := range *inputResponse {
 			for _, state := range []string{"OK", "ERROR", "NOT_USED"} {
 				ch <- prometheus.MustNewConstMetric(
-					inputStatus, prometheus.GaugeValue, input.HasStatus(state), input.Name, input.Identifier, state,
+					inputStatus, prometheus.GaugeValue, CheckState(input.State, state), input.Name, input.Identifier, state,
 				)
 			}
 		}
@@ -66,7 +69,7 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 	}
 
 	// Get cloud services
-	serviceResponse, err := QueryCloudServices(e.Hostname, e.accessKey)
+	serviceResponse, err := QueryCloudServices(e.Hostname, e.AccessKey)
 	if err != nil {
 		fmt.Println(err)
 		errors += 1
@@ -74,17 +77,30 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 		for _, service := range *serviceResponse {
 			for _, state := range []string{"OK", "ERROR"} {
 				ch <- prometheus.MustNewConstMetric(
-					cloudServiceStatus, prometheus.GaugeValue, service.HasStatus(state), service.Name, state,
+					cloudServiceStatus, prometheus.GaugeValue, CheckState(service.State, state), service.Name, state,
 				)
 			}
 		}
 	}
 
 	// System status
-	// TODO
+	statusResponse, err := QueryStatus(e.Hostname, e.AccessKey)
+	if err != nil {
+		fmt.Println(err)
+		errors += 1
+	} else {
+		ch <- prometheus.MustNewConstMetric(loggedErrors, prometheus.GaugeValue, statusResponse.NbrOfLoggedErrors)
+
+		for _, state := range []string{"OK", "WARN", "ERROR"} {
+			ch <- prometheus.MustNewConstMetric(systemStatus, prometheus.GaugeValue, CheckState(statusResponse.State, state), state)
+		}
+		for _, state := range []string{"OK", "WARN"} {
+			ch <- prometheus.MustNewConstMetric(redundancyStatus, prometheus.GaugeValue, CheckState(statusResponse.RedundancyState.State, state), state)
+		}
+	}
 
 	// MQTT status
-	mqttResponse, err := QueryMQTTServer(e.Hostname, e.accessKey)
+	mqttResponse, err := QueryMQTTServer(e.Hostname, e.AccessKey)
 	if err != nil {
 		fmt.Println(err)
 		errors += 1
@@ -92,14 +108,14 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 		for _, server := range *mqttResponse {
 			for _, state := range []string{"OK", "ERROR", "NOT_USED"} {
 				ch <- prometheus.MustNewConstMetric(
-					mqttServerStatus, prometheus.GaugeValue, server.HasStatus(state), server.Name, state,
+					mqttServerStatus, prometheus.GaugeValue, CheckState(server.State, state), server.Name, state,
 				)
 			}
 		}
 	}
 
 	// Storage/Memory status
-	systemReponse, err := QuerySystem(e.Hostname, e.accessKey)
+	systemReponse, err := QuerySystem(e.Hostname, e.AccessKey)
 	if err != nil {
 		fmt.Println(err)
 		errors += 1

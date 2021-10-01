@@ -54,6 +54,21 @@ var (
 		"Free space on storage disks",
 		[]string{"drive_letter"}, nil,
 	)
+	systemStatus = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "system_status"),
+		"Current state of the system",
+		[]string{"state"}, nil,
+	)
+	loggedErrors = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "logged_errors"),
+		"Number of errors in the last 60 minutes",
+		nil, nil,
+	)
+	redundancyStatus = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "redundancy_status"),
+		"Current redundancy state of the system",
+		[]string{"state"}, nil,
+	)
 )
 
 func main() {
