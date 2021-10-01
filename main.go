@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -14,7 +16,10 @@ const (
 )
 
 var (
-	up = prometheus.NewDesc(
+	hostname  string
+	accessKey string
+	ssl       bool
+	up        = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "up"),
 		"Was the last scrape successful",
 		nil, nil,
@@ -71,9 +76,25 @@ var (
 	)
 )
 
+func init() {
+	flag.StringVar(&hostname, "host", "", "Address of the FE2 server")
+	flag.BoolVar(&ssl, "ssl", true, "Use SSL to talk to the FE2 server")
+	flag.StringVar(&accessKey, "accesskey", "", "Authorization key for the monitoring api")
+}
+
 func main() {
-	accessKey := "topsecret"
-	hostname := "http://10.10.0.1"
+	flag.Parse()
+
+	if hostname == "" || accessKey == "" {
+		fmt.Println("hostname and accesskey are both required parameters")
+		os.Exit(1)
+	}
+
+	protocol := "https://"
+	if !ssl {
+		protocol = "http://"
+	}
+	hostname = fmt.Sprintf("%s%s", protocol, hostname)
 
 	exporter := NewExporter(hostname, accessKey)
 	prometheus.MustRegister(exporter)
