@@ -16,7 +16,12 @@ const (
 var (
 	up = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "up"),
-		"Was the last scrape successful.",
+		"Was the last scrape successful",
+		nil, nil,
+	)
+	scrapeDuration = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "scrape_duration"),
+		"Duration of last scrape",
 		nil, nil,
 	)
 	inputStatus = prometheus.NewDesc(

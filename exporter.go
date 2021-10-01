@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -20,13 +21,18 @@ func NewExporter(hostname string, accessKey string) *Exporter {
 
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- up
+	ch <- scrapeDuration
 	ch <- inputStatus
 	ch <- cloudServiceStatus
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
+	start := time.Now()
 	status := e.Scrape(ch)
+	duration := time.Since(start)
+
 	ch <- prometheus.MustNewConstMetric(up, prometheus.GaugeValue, status)
+	ch <- prometheus.MustNewConstMetric(scrapeDuration, prometheus.GaugeValue, duration.Seconds())
 }
 
 func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
