@@ -29,6 +29,11 @@ var (
 		"Current value of an alarm input",
 		[]string{"name", "id"}, nil,
 	)
+	cloudServiceStatus = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "", "cloud_service_state"),
+		"Current state of a cloud service",
+		[]string{"name", "state"}, nil,
+	)
 )
 
 func main() {

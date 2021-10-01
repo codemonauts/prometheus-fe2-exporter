@@ -21,9 +21,23 @@ type InputOverview []struct {
 	ID string `json:"id"`
 }
 
+type CloudService struct {
+	Name  string `json:"service"`
+	State string `json:"state"`
+}
+
 // HasStatus checks if the alarm input has the given state
 func (i InputDetail) HasStatus(status string) float64 {
 	if i.State == status {
+		return 1
+	} else {
+		return 0
+	}
+}
+
+// HasStatus checks if the cloudservice has the given state
+func (c CloudService) HasStatus(status string) float64 {
+	if c.State == status {
 		return 1
 	} else {
 		return 0
@@ -81,4 +95,25 @@ func QueryInputs(hostname string, accessKey string) (*[]InputDetail, error) {
 	}
 
 	return &inputDetails, nil
+}
+
+// QueryCloudServices returns a list of all cloudservices
+func QueryCloudServices(hostname string, accessKey string) (*[]CloudService, error) {
+	authHeader := req.Header{
+		"Accept":        "application/json",
+		"Authorization": accessKey,
+	}
+	var services []CloudService
+
+	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/cloud", hostname), authHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.ToJSON(&services)
+	if err != nil {
+		return nil, err
+	}
+
+	return &services, nil
 }

@@ -21,6 +21,7 @@ func NewExporter(hostname string, accessKey string) *Exporter {
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- up
 	ch <- inputStatus
+	ch <- cloudServiceStatus
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
@@ -32,12 +33,12 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 	errors := 0
 
 	// Get alarm inputs
-	response, err := QueryInputs(e.Hostname, e.accessKey)
+	inputResponse, err := QueryInputs(e.Hostname, e.accessKey)
 	if err != nil {
 		fmt.Println(err)
 		errors += 1
 	} else {
-		for _, input := range *response {
+		for _, input := range *inputResponse {
 			for _, state := range []string{"OK", "ERROR", "NOT_USED"} {
 				ch <- prometheus.MustNewConstMetric(
 					inputStatus, prometheus.GaugeValue, input.HasStatus(state), input.Name, input.Identifier, state,
@@ -45,7 +46,7 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 			}
 		}
 
-		for _, input := range *response {
+		for _, input := range *inputResponse {
 			if v, err := input.GetValue(); err == nil {
 				ch <- prometheus.MustNewConstMetric(
 					inputValue, prometheus.GaugeValue, v, input.Name, input.Identifier,
@@ -56,7 +57,19 @@ func (e *Exporter) Scrape(ch chan<- prometheus.Metric) float64 {
 	}
 
 	// Get cloud services
-	// TODO
+	serviceResponse, err := QueryCloudServices(e.Hostname, e.accessKey)
+	if err != nil {
+		fmt.Println(err)
+		errors += 1
+	} else {
+		for _, service := range *serviceResponse {
+			for _, state := range []string{"OK", "ERROR"} {
+				ch <- prometheus.MustNewConstMetric(
+					cloudServiceStatus, prometheus.GaugeValue, service.HasStatus(state), service.Name, state,
+				)
+			}
+		}
+	}
 
 	// System status
 	// TODO
