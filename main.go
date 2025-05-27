@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -17,6 +18,7 @@ const (
 
 var (
 	hostname  string
+	port      string
 	accessKey string
 	ssl       bool
 	up        = prometheus.NewDesc(
@@ -77,12 +79,26 @@ var (
 )
 
 func init() {
-	flag.StringVar(&hostname, "host", "", "Address of the FE2 server")
-	flag.BoolVar(&ssl, "ssl", true, "Use SSL to talk to the FE2 server")
-	flag.StringVar(&accessKey, "accesskey", "", "Authorization key for the monitoring api")
+	envHostname := os.Getenv("FE2_EXPORTER_HOST")
+	envPort := os.Getenv("FE2_EXPORTER_PORT")
+	if envPort == "" {
+		envPort = "83"
+	}
+	parsed, err := strconv.ParseBool(os.Getenv("FE2_EXPORTER_SSL"))
+	envSSL := true
+	if err == nil {
+		envSSL = parsed
+	}
+	envAccesskey := os.Getenv("FE2_EXPORTER_ACCESSKEY")
+
+	flag.StringVar(&hostname, "host", envHostname, "Address of the FE2 server")
+	flag.StringVar(&port, "port", envPort, "Port of the FE2 server")
+	flag.BoolVar(&ssl, "ssl", envSSL, "Use SSL to talk to the FE2 server")
+	flag.StringVar(&accessKey, "accesskey", envAccesskey, "Authorization key for the monitoring api")
 }
 
 func main() {
+
 	flag.Parse()
 
 	if hostname == "" || accessKey == "" {
@@ -94,7 +110,8 @@ func main() {
 	if !ssl {
 		protocol = "http://"
 	}
-	hostname = fmt.Sprintf("%s%s", protocol, hostname)
+	hostname = fmt.Sprintf("%s%s:%s", protocol, hostname, port)
+	fmt.Printf("FE2 server address is %q\n", hostname)
 
 	exporter := NewExporter(hostname, accessKey)
 	prometheus.MustRegister(exporter)
