@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o prometheus-fe2-exporter .
 FROM scratch 
 
 # Use a non-root user
-USER nonroot:nonroot
+USER 1000:1000
 
 # Copy the statically linked binary
 COPY --from=builder /app/prometheus-fe2-exporter /
