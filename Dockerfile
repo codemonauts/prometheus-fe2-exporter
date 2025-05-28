@@ -26,7 +26,7 @@ USER nonroot:nonroot
 COPY --from=builder /app/prometheus-fe2-exporter /
 
 # Expose the metrics port
-EXPOSE 9421
+EXPOSE 9865
 
 # Start the exporter
 ENTRYPOINT ["/prometheus-fe2-exporter"]
