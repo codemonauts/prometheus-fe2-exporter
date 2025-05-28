@@ -13,11 +13,11 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
-# Build the application statically (important for distroless)
+# Build the application statically
 RUN CGO_ENABLED=0 GOOS=linux go build -o prometheus-fe2-exporter .
 
-# Stage 2: Runtime (Distroless)
-FROM gcr.io/distroless/static:nonroot
+# Stage 2: Runtime
+FROM scratch 
 
 # Use a non-root user
 USER nonroot:nonroot
