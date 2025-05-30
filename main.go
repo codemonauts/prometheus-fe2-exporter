@@ -16,9 +16,8 @@ const (
 )
 
 var (
-	hostname  string
+	url       string
 	accessKey string
-	ssl       bool
 	up        = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "", "up"),
 		"Was the last scrape successful",
@@ -77,26 +76,25 @@ var (
 )
 
 func init() {
-	flag.StringVar(&hostname, "host", "", "Address of the FE2 server")
-	flag.BoolVar(&ssl, "ssl", true, "Use SSL to talk to the FE2 server")
-	flag.StringVar(&accessKey, "accesskey", "", "Authorization key for the monitoring api")
+	envUrl := os.Getenv("FE2_EXPORTER_URL")
+	envAccesskey := os.Getenv("FE2_EXPORTER_ACCESSKEY")
+
+	flag.StringVar(&url, "url", envUrl, "Address of the FE2 server")
+	flag.StringVar(&accessKey, "accesskey", envAccesskey, "Authorization key for the monitoring api")
 }
 
 func main() {
+
 	flag.Parse()
 
-	if hostname == "" || accessKey == "" {
-		fmt.Println("hostname and accesskey are both required parameters")
+	if url == "" || accessKey == "" {
+		fmt.Println("Url and accesskey are both required parameters")
 		os.Exit(1)
 	}
 
-	protocol := "https://"
-	if !ssl {
-		protocol = "http://"
-	}
-	hostname = fmt.Sprintf("%s%s", protocol, hostname)
+	fmt.Printf("FE2 server address is %q\n", url)
 
-	exporter := NewExporter(hostname, accessKey)
+	exporter := NewExporter(url, accessKey)
 	prometheus.MustRegister(exporter)
 
 	fmt.Printf("Listening on %q\n", listenAddr)
