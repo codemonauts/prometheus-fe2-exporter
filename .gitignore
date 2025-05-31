@@ -1,2 +1,3 @@
 prometheus-fe2-exporter
 dist/
+/.direnv
