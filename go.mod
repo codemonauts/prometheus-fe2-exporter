@@ -3,7 +3,7 @@ module github.com/codemonauts/prometheus-fe2-exporter
 go 1.23
 
 require (
-	github.com/imroc/req v0.3.0
+	github.com/imroc/req v0.3.2
 	github.com/prometheus/client_golang v1.11.0
 )
 
