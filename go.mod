@@ -1,6 +1,6 @@
 module github.com/codemonauts/prometheus-fe2-exporter
 
-go 1.17
+go 1.23
 
 require (
 	github.com/imroc/req v0.3.0

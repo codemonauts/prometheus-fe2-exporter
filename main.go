@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -99,5 +100,11 @@ func main() {
 
 	fmt.Printf("Listening on %q\n", listenAddr)
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(listenAddr, nil)
+	err := http.ListenAndServe(listenAddr, nil)
+	if errors.Is(err, http.ErrServerClosed) {
+		fmt.Printf("Exporter closed\n")
+	} else if err != nil {
+		fmt.Printf("Error starting exporter: %s\n", err)
+		os.Exit(1)
+	}
 }
