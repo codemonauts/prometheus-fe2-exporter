@@ -1,7 +1,7 @@
 FROM golang:alpine AS builder
 
 # Install git and necessary packages
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 # Set the working directory
 WORKDIR /app
@@ -17,7 +17,11 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o prometheus-fe2-exporter .
 
 # Stage 2: Runtime
-FROM scratch 
+FROM scratch
+
+# Copy the CA certificates from the builder stage
+# This is crucial for validating SSL/TLS connections
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Use a non-root user
 USER 1000:1000
