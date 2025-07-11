@@ -20,7 +20,7 @@ docker run -d \
 ```yaml
   prometheus-fe2-exporter:
     container_name: prometheus-fe2-exporter
-    image: prometheus-fe2-exporter:latest
+    image: codemonauts/prometheus-fe2-exporter:latest
     environment:
       FE2_EXPORTER_URL: "http://alamos-fe2-server:83"
       FE2_EXPORTER_ACCESSKEY: "Gz8NcB6aKTp2uQ+Y1oVhRA=="
