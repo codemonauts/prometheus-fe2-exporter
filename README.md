@@ -29,12 +29,22 @@ docker run -d \
       - 9865:9865
 ```
 
-## Binay
+## Binary
 
 ```
 Usage of ./prometheus-fe2-exporter:
   -accesskey string
         Authorization key for the monitoring api
+  -listen string
+        Address to listen on for the metrics endpoint (default ":9865")
   -url string
         Address of the FE2 server (for example http://alamos-fe2-server:83)
 ```
+
+All flags can also be set via environment variables: `FE2_EXPORTER_URL`,
+`FE2_EXPORTER_ACCESSKEY` and `FE2_EXPORTER_LISTEN`.
+
+## Endpoints
+
+- `/metrics` – Prometheus metrics
+- `/healthz` – liveness probe (returns `ok`)
