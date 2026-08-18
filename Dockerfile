@@ -1,4 +1,4 @@
-FROM golang:alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install git and necessary packages
 RUN apk add --no-cache git ca-certificates
@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application statically
-RUN CGO_ENABLED=0 GOOS=linux go build -o prometheus-fe2-exporter .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o prometheus-fe2-exporter .
 
 # Stage 2: Runtime
 FROM scratch
