@@ -1,14 +1,22 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/imroc/req"
+	"time"
 )
+
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
+}
+
+var valueRe = regexp.MustCompile(`[0-9]+,[0-9]+`)
 
 type InputDetail struct {
 	Name       string `json:"name"`
@@ -55,58 +63,69 @@ type StatusResponse struct {
 	} `json:"redundancyState"`
 }
 
-// CheckState compares two string values and returns either 0 oder 1
+// get request against the given URL
+func get(ctx context.Context, url string, accessKey string, target any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", accessKey)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d from %s", resp.StatusCode, url)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
+		return fmt.Errorf("decoding response from %s: %w", url, err)
+	}
+
+	return nil
+}
+
+// CheckState compares two string values and returns either 0 or 1
 func CheckState(value string, state string) float64 {
 	if value == state {
 		return 1
-	} else {
-		return 0
 	}
+	return 0
 }
 
 // GetValue searches in the message field for a possible numerical value
 func (i InputDetail) GetValue() (float64, error) {
-	r, _ := regexp.Compile("[0-9]*,[0-9[0-9]]*")
-	if v := r.FindString(i.Message); v != "" {
-
-		// Convert float from german to american notation
-		v = strings.ReplaceAll(v, ",", ".")
-
-		f, _ := strconv.ParseFloat(v, 64)
-		return f, nil
-	} else {
+	v := valueRe.FindString(i.Message)
+	if v == "" {
 		return 0, errors.New("no value in message")
 	}
+
+	// Convert float from german to american notation
+	v = strings.ReplaceAll(v, ",", ".")
+
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parsing value %q: %w", v, err)
+	}
+	return f, nil
 }
 
 // QueryInputs returns a list with information about all alarm inputs
-func QueryInputs(hostname string, AccessKey string) (*[]InputDetail, error) {
-	authHeader := req.Header{
-		"Accept":        "application/json",
-		"Authorization": AccessKey,
-	}
+func QueryInputs(ctx context.Context, hostname string, accessKey string) (*[]InputDetail, error) {
 	var inputDetails []InputDetail
 	var inputOverview InputOverview
 
-	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/input", hostname), authHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.ToJSON(&inputOverview)
-	if err != nil {
+	if err := get(ctx, fmt.Sprintf("%s/rest/monitoring/input", hostname), accessKey, &inputOverview); err != nil {
 		return nil, err
 	}
 
 	for _, input := range inputOverview {
-		r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/input/%s", hostname, input.ID), authHeader)
-		if err != nil {
-			return nil, err
-		}
-
 		var detail InputDetail
-		err = r.ToJSON(&detail)
-		if err != nil {
+		if err := get(ctx, fmt.Sprintf("%s/rest/monitoring/input/%s", hostname, input.ID), accessKey, &detail); err != nil {
 			return nil, err
 		}
 
@@ -118,20 +137,10 @@ func QueryInputs(hostname string, AccessKey string) (*[]InputDetail, error) {
 }
 
 // QueryCloudServices returns a list of all cloudservices
-func QueryCloudServices(hostname string, AccessKey string) (*[]CloudService, error) {
-	authHeader := req.Header{
-		"Accept":        "application/json",
-		"Authorization": AccessKey,
-	}
+func QueryCloudServices(ctx context.Context, hostname string, accessKey string) (*[]CloudService, error) {
 	var services []CloudService
 
-	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/cloud", hostname), authHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.ToJSON(&services)
-	if err != nil {
+	if err := get(ctx, fmt.Sprintf("%s/rest/monitoring/cloud", hostname), accessKey, &services); err != nil {
 		return nil, err
 	}
 
@@ -139,31 +148,21 @@ func QueryCloudServices(hostname string, AccessKey string) (*[]CloudService, err
 }
 
 // QueryMQTTServer returns a list of all mqtt brokers
-func QueryMQTTServer(hostname string, AccessKey string) (*[]MQTTServer, error) {
-	authHeader := req.Header{
-		"Accept":        "application/json",
-		"Authorization": AccessKey,
-	}
+func QueryMQTTServer(ctx context.Context, hostname string, accessKey string) (*[]MQTTServer, error) {
 	var resp MQTTRestResponse
 
-	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/mqtt", hostname), authHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.ToJSON(&resp)
-	if err != nil {
+	if err := get(ctx, fmt.Sprintf("%s/rest/monitoring/mqtt", hostname), accessKey, &resp); err != nil {
 		return nil, err
 	}
 
 	// Convert data structure from single object to list of objects
 	// to fit the structure of all other endpoints
 	mqttServer := []MQTTServer{
-		MQTTServer{
+		{
 			Name:  "defaultBroker",
 			State: resp.Default,
 		},
-		MQTTServer{
+		{
 			Name:  "kubernetes",
 			State: resp.Kubernetes,
 		},
@@ -173,20 +172,10 @@ func QueryMQTTServer(hostname string, AccessKey string) (*[]MQTTServer, error) {
 }
 
 // QuerySystem returns information about memory and disc space
-func QuerySystem(hostname string, AccessKey string) (*SystemResponse, error) {
-	authHeader := req.Header{
-		"Accept":        "application/json",
-		"Authorization": AccessKey,
-	}
+func QuerySystem(ctx context.Context, hostname string, accessKey string) (*SystemResponse, error) {
 	var resp SystemResponse
 
-	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/system", hostname), authHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.ToJSON(&resp)
-	if err != nil {
+	if err := get(ctx, fmt.Sprintf("%s/rest/monitoring/system", hostname), accessKey, &resp); err != nil {
 		return nil, err
 	}
 
@@ -205,20 +194,10 @@ func QuerySystem(hostname string, AccessKey string) (*SystemResponse, error) {
 }
 
 // QueryStatus returns status information about the FE2 software
-func QueryStatus(hostname string, AccessKey string) (*StatusResponse, error) {
-	authHeader := req.Header{
-		"Accept":        "application/json",
-		"Authorization": AccessKey,
-	}
+func QueryStatus(ctx context.Context, hostname string, accessKey string) (*StatusResponse, error) {
 	var resp StatusResponse
 
-	r, err := req.Get(fmt.Sprintf("%s/rest/monitoring/status", hostname), authHeader)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.ToJSON(&resp)
-	if err != nil {
+	if err := get(ctx, fmt.Sprintf("%s/rest/monitoring/status", hostname), accessKey, &resp); err != nil {
 		return nil, err
 	}
 
